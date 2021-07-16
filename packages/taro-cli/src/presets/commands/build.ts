@@ -13,7 +13,8 @@ export default (ctx: IPluginContext) => {
       '-p, --port [port]': 'Specified port',
       '--platform': 'Specific React-Native build target: android / ios, android is default value',
       '--reset-cache': 'Clear transform cache just for React-Native',
-      '--blended': 'Blended Taro project in an original MiniApp project'
+      '--blended': 'Blended Taro project in an original MiniApp project',
+      '--plugin [typeName]': 'Build Taro plugin project, weapp'
       // '--port [port]': 'Specified port',
     },
     synopsisList: [
@@ -21,7 +22,9 @@ export default (ctx: IPluginContext) => {
       'taro build --type weapp --watch',
       'taro build --type weapp --env production',
       'taro build --type weapp --blended',
-      'taro build native-components --type weapp'
+      'taro build native-components --type weapp',
+      'taro build --plugin weapp --watch',
+      'taro build --plugin weapp'
     ],
     async fn (opts) {
       const { options, config, _ } = opts
@@ -108,11 +111,29 @@ export default (ctx: IPluginContext) => {
                 }
               })
             },
+            async modifyComponentConfig (componentConfig, config) {
+              await ctx.applyPlugins({
+                name: hooks.MODIFY_COMPONENT_CONFIG,
+                opts: {
+                  componentConfig,
+                  config
+                }
+              })
+            },
             async onCompilerMake (compilation) {
               await ctx.applyPlugins({
                 name: hooks.ON_COMPILER_MAKE,
                 opts: {
                   compilation
+                }
+              })
+            },
+            async onParseCreateElement (nodeName, componentConfig) {
+              await ctx.applyPlugins({
+                name: hooks.ON_PARSE_CREATE_ELEMENT,
+                opts: {
+                  nodeName,
+                  componentConfig
                 }
               })
             },
@@ -138,9 +159,12 @@ function registerBuildHooks (ctx) {
     hooks.MODIFY_WEBPACK_CHAIN,
     hooks.MODIFY_BUILD_ASSETS,
     hooks.MODIFY_MINI_CONFIGS,
+    hooks.MODIFY_COMPONENT_CONFIG,
     hooks.ON_COMPILER_MAKE,
+    hooks.ON_PARSE_CREATE_ELEMENT,
     hooks.ON_BUILD_START,
-    hooks.ON_BUILD_FINISH
+    hooks.ON_BUILD_FINISH,
+    hooks.MODIFY_RUNNER_OPTS
   ].forEach(methodName => {
     ctx.registerMethod(methodName)
   })

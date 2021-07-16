@@ -53,7 +53,6 @@ export const components = {
     'report-submit-timeout': '0'
   },
   Input: {
-    'auto-focus': 'false',
     'always-embed': 'false',
     'adjust-position': 'true',
     'hold-keyboard': 'false',
@@ -75,6 +74,8 @@ export const components = {
     'adjust-position': 'true',
     'hold-keyboard': 'false',
     'disable-default-padding': 'false',
+    'confirm-type': singleQuote('return'),
+    'confirm-hold': 'false',
     bindKeyboardHeightChange: ''
   },
   ScrollView: {
@@ -155,6 +156,9 @@ export const components = {
     // 'picture-in-picture-show-progress': 'false',
     'enable-auto-rotation': 'false',
     'show-screen-lock-button': 'false',
+    'show-snapshot-button': 'false',
+    'show-background-playback-button': 'false',
+    'background-poster': '',
     bindProgress: '',
     bindLoadedMetadata: '',
     bindControlsToggle: '',
@@ -172,6 +176,10 @@ export const components = {
   Ad: {
     'ad-type': singleQuote('banner'),
     'ad-theme': singleQuote('white')
+  },
+  CoverView: {
+    'marker-id': '',
+    slot: ''
   },
   // ======== 额外组件 ========
   Editor: {
@@ -306,5 +314,6 @@ export const components = {
     bindLeave: '',
     bindAfterLeave: '',
     bindClickOverlay: ''
-  }
+  },
+  KeyboardAccessory: {}
 }

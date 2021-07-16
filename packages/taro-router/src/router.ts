@@ -1,14 +1,16 @@
 /* eslint-disable dot-notation */
 import UniversalRouter, { Routes } from 'universal-router'
 import { LocationListener, LocationState } from 'history'
-import { AppConfig, PageConfig } from '@tarojs/taro'
-import { createPageConfig, Current, PageInstance, eventCenter, CurrentReconciler, AppInstance, stringify, requestAnimationFrame } from '@tarojs/runtime'
+import { createPageConfig, Current, eventCenter, container, SERVICE_IDENTIFIER, stringify, requestAnimationFrame } from '@tarojs/runtime'
 import { qs } from './qs'
 import { history } from './history'
 import { stacks } from './stack'
 import { init, routerConfig } from './init'
 import { bindPageScroll } from './scroll'
-import { setRoutesAlias, addLeadingSlash } from './utils'
+import { setRoutesAlias, addLeadingSlash, historyBackDelta, setHistoryBackDelta } from './utils'
+
+import type { AppConfig, PageConfig } from '@tarojs/taro'
+import type { PageInstance, AppInstance, IHooks } from '@tarojs/runtime'
 
 export interface Route extends PageConfig {
   path?: string
@@ -21,7 +23,8 @@ export interface RouterConfig extends AppConfig {
     mode: 'hash' | 'browser'
     basename: string,
     customRoutes?: Record<string, string>,
-    pathname: string
+    pathname: string,
+    forcePath?: string
   },
   PullDownRefresh?: any
 }
@@ -39,11 +42,12 @@ function hidePage (page: PageInstance | null) {
 function showPage (page: PageInstance | null, pageConfig: Route | undefined) {
   if (page != null) {
     page.onShow!()
-    const pageEl = document.getElementById(page.path!)
+    let pageEl = document.getElementById(page.path!)
     if (pageEl) {
       pageEl.style.display = 'block'
     } else {
       page.onLoad(qs())
+      pageEl = document.getElementById(page.path!)
       pageOnReady(pageEl, page, false)
     }
     bindPageScroll(page, pageConfig || {})
@@ -52,7 +56,6 @@ function showPage (page: PageInstance | null, pageConfig: Route | undefined) {
 
 function unloadPage (page: PageInstance | null) {
   if (page != null) {
-    page.onHide!()
     stacks.pop()
     page.onUnload()
   }
@@ -79,9 +82,6 @@ function loadPage (page: PageInstance | null, pageConfig: Route | undefined) {
       pageEl.style.display = 'block'
     } else {
       page.onLoad(qs())
-      requestAnimationFrame(() => {
-        page.onReady!()
-      })
       pageEl = document.getElementById(page.path!)
       pageOnReady(pageEl, page)
     }
@@ -100,6 +100,7 @@ export function createRouter (
 
   const routes: Routes = []
   const alias = config.router.customRoutes ?? {}
+  const runtimeHooks = container.get<IHooks>(SERVICE_IDENTIFIER.Hooks)
 
   setRoutesAlias(alias)
   for (let i = 0; i < config.routes.length; i++) {
@@ -118,7 +119,7 @@ export function createRouter (
     routerConfig.router.pathname = location.pathname
     let element
     try {
-      element = await router.resolve(location.pathname)
+      element = await router.resolve(config.router.forcePath || location.pathname)
     } catch (error) {
       if (error.status === 404) {
         app.onPageNotFound?.({
@@ -150,6 +151,12 @@ export function createRouter (
 
     if (action === 'POP') {
       unloadPage(Current.page)
+      let delta = historyBackDelta
+      while (delta-- > 1) {
+        unloadPage(stacks.slice(-1)[0])
+      }
+      // 最终必须重置为 1
+      setHistoryBackDelta(1)
       const prev = stacks.find(s => s.path === location.pathname + stringify(qs()))
       if (prev) {
         showPage(prev, pageConfig)
@@ -170,7 +177,7 @@ export function createRouter (
       delete config['path']
       delete config['load']
       const page = createPageConfig(
-        enablePullDownRefresh ? CurrentReconciler.createPullDownComponent?.(el, location.pathname, framework, routerConfig.PullDownRefresh) : el,
+        enablePullDownRefresh ? runtimeHooks.createPullDownComponent?.(el, location.pathname, framework, routerConfig.PullDownRefresh) : el,
         location.pathname + stringify(qs()),
         {},
         config
